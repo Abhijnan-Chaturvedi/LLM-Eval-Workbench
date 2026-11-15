@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Evaluation Workbench | Abhijnan Chaturvedi</title>
+<meta name="description" content="Compare LLMs on your own task with a two-stage evaluation: a golden dataset check plus an LLM judge, weighed against cost and speed.">
+<meta name="author" content="Abhijnan Chaturvedi">
+<style>
+:root{
+  --bg:#f4f5f7; --surface:#fcfcfb; --surface2:#eef1f5; --line:#d9dee6;
+  --ink:#0f1b2d; --ink2:#46546a; --ink3:#6b778a;
+  --navy:#14315c; --brand:#2a78d6; --brandsoft:#e3eefb;
+  --good:#0b7a3b; --goodsoft:#e2f4e9; --bad:#b3261e; --badsoft:#fbe9e7; --warn:#8a5a00; --warnsoft:#fdf1d6;
+  --head:#0f1b2d; --headink:#f4f6fa; --headink2:#b9c7dc;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101418; --surface:#1a1f26; --surface2:#222933; --line:#333c49;
+    --ink:#eef1f5; --ink2:#bcc6d4; --ink3:#8f9bac;
+    --navy:#a9c8f5; --brand:#3987e5; --brandsoft:#1c2f4a;
+    --good:#4cc27e; --goodsoft:#16301f; --bad:#f08a80; --badsoft:#3a1c1a; --warn:#e3b04b; --warnsoft:#3a2e12;
+    --head:#0b1220; --headink:#f4f6fa; --headink2:#b9c7dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+h1,h2,h3,p{margin:0}
+a{color:var(--brand)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{background:var(--head);color:var(--headink);padding:36px 0 32px}
+header .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--headink2);font-weight:600}
+header h1{font-size:clamp(28px,4.4vw,42px);line-height:1.12;margin-top:10px;letter-spacing:-.01em}
+header p.sub{margin-top:12px;max-width:720px;color:var(--headink2);font-size:17px}
+.modes{display:inline-flex;margin-top:24px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px;gap:4px}
+.modes button{border:0;background:transparent;color:var(--headink2);padding:9px 18px;border-radius:7px;cursor:pointer;font-weight:600}
+.modes button[aria-pressed="true"]{background:#f4f6fa;color:#0f1b2d}
+main.wrap{padding:28px 20px 60px}
+section.block{margin-top:28px}
+.h2{font-size:20px;color:var(--navy);letter-spacing:-.005em}
+.h2 + .hint{margin-top:4px}
+.hint{color:var(--ink3);font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.three h3{font-size:15px;color:var(--navy)}
+.three p{font-size:14.5px;color:var(--ink2);margin-top:6px}
+.banner{background:var(--warnsoft);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:14px;margin-top:20px;font-weight:500}
+.controls{display:grid;grid-template-columns:1.1fr 2fr;gap:16px;margin-top:14px}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+select,input[type=text],input[type=password],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.45}
+select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sliders{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.sl .top{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink2)}
+.sl .top b{color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);margin-top:8px}
+.reco{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;align-items:center;border-left:5px solid var(--brand)}
+.reco .tag{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.reco h3{font-size:26px;margin-top:4px;letter-spacing:-.01em}
+.reco p{color:var(--ink2);margin-top:8px;font-size:15px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--surface2);border-radius:10px;padding:12px}
+.tile .k{font-size:12px;color:var(--ink3);font-weight:600}
+.tile .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:14.5px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;background:var(--surface2)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.win td{background:var(--brandsoft)}
+.mname{font-weight:600}
+.msub{font-size:12.5px;color:var(--ink3)}
+.qbar{display:flex;align-items:center;gap:10px;min-width:150px}
+.qbar .track{flex:1;height:8px;background:var(--surface2);border-radius:4px;position:relative;overflow:visible}
+.qbar .fill{height:8px;border-radius:4px;background:var(--brand)}
+.qbar .gate{position:absolute;top:-4px;width:2px;height:16px;background:var(--ink)}
+.qbar b{font-variant-numeric:tabular-nums;width:34px;text-align:right}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pill.good{background:var(--goodsoft);color:var(--good)}
+.pill.bad{background:var(--badsoft);color:var(--bad)}
+.pill.warn{background:var(--warnsoft);color:var(--warn)}
+.pill.brand{background:var(--brand);color:#fff}
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:14px}
+.chart{position:relative}
+.chart svg{width:100%;height:auto;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12.5px;line-height:1.4;padding:8px 10px;border-radius:8px;transform:translate(-50%,-110%);white-space:nowrap;display:none;z-index:2}
+.queue li{margin:0 0 10px 0;font-size:14.5px;color:var(--ink2)}
+.queue ul{padding-left:18px;margin:12px 0 0}
+.queue button.link{border:0;background:none;color:var(--brand);padding:0;cursor:pointer;text-decoration:underline;font-weight:600}
+.caseHead{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.box{background:var(--surface2);border-radius:10px;padding:14px;font-size:14.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.box .k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600;margin-bottom:6px}
+.outs{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:14px}
+.out .hd{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.out .txt{margin-top:10px;font-size:15px;white-space:pre-wrap;overflow-wrap:anywhere}
+.out .scores{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:var(--surface2);border-radius:8px;padding:4px 9px;font-size:12.5px;color:var(--ink2)}
+.chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+.out .why{margin-top:10px;font-size:13.5px;color:var(--ink2);border-top:1px solid var(--line);padding-top:10px}
+.live{display:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:11px 20px;font-weight:700;cursor:pointer}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+.status{font-size:14px;color:var(--ink2);margin-top:12px;min-height:21px}
+.err{color:var(--bad)}
+.method li{margin-bottom:8px;color:var(--ink2);font-size:14.5px}
+.method ul{padding-left:18px;margin:10px 0 0}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--ink3);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:860px){
+  .three,.controls,.reco,.two,.caseHead,.outs,.grid2{grid-template-columns:1fr}
+  .sliders{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Product showcase by Abhijnan Chaturvedi</div>
+    <h1>LLM Evaluation Workbench</h1>
+    <p class="sub">Compare models on your own task. A golden dataset check and an LLM judge score quality, then quality is weighed against cost and speed to give one recommendation you can defend.</p>
+    <div class="modes" role="group" aria-label="Mode">
+      <button id="modeDemo" aria-pressed="true">Demo with sample data</button>
+      <button id="modeLive" aria-pressed="false">Live run with your API key</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="three">
+    <div class="card"><h3>The problem</h3><p>Teams pick an LLM from a demo and a public leaderboard. Neither reflects their own data, and quality, cost and speed get decided by different people.</p></div>
+    <div class="card"><h3>The approach</h3><p>Run every model on the same test cases. Stage 1 checks each answer against the expected one. Stage 2 has a judge model score it. Disagreements go to a person.</p></div>
+    <div class="card"><h3>Who it is for</h3><p>Product managers choosing a model, engineers checking a prompt or model change, and business owners who need cost at a given quality.</p></div>
+  </div>
+
+  <!-- LIVE SETUP -->
+  <section class="block live" id="livePanel">
+    <h2 class="h2">Set up a live run</h2>
+    <p class="hint">Works with any OpenAI-compatible endpoint. Your key is sent only to the address you enter below. It is kept in this page's memory and is gone when you close the tab.</p>
+    <div class="card" style="margin-top:14px">
+      <div class="grid2">
+        <div><label class="f" for="baseUrl">API base URL</label><input type="text" id="baseUrl" value="https://openrouter.ai/api/v1" spellcheck="false"></div>
+        <div><label class="f" for="apiKey">API key</label><input type="password" id="apiKey" placeholder="Paste your key" autocomplete="off"></div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <div>
+          <label class="f" for="modelIds">Models to compare, one per line (2 to 5)</label>
+          <textarea id="modelIds" rows="5" placeholder="provider/model-name&#10;provider/another-model&#10;&#10;Optional prices per 1M tokens:&#10;model-name | 0.50 | 1.50" spellcheck="false"></textarea>
+          <p class="hint" style="margin-top:6px">On OpenRouter, prices are looked up for you. On other endpoints, add input and output price per 1M tokens after the name, separated by |.</p>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input type="text" id="modelSearch" list="modelList" placeholder="Search the OpenRouter model list" spellcheck="false">
+            <datalist id="modelList"></datalist>
+            <button class="btn ghost" id="addModel" type="button">Add</button>
+          </div>
+        </div>
+        <div>
+          <label class="f" for="judgeId">Judge model</label>
+          <input type="text" id="judgeId" list="modelList" placeholder="A strong model, ideally not one being tested" spellcheck="false">
+          <label class="f" for="sample" style="margin-top:14px">Start from a sample task</label>
+          <select id="sample"></select>
+          <label class="f" for="metric" style="margin-top:14px">Stage 1 check</label>
+          <select id="metric">
+            <option value="exact">Exact label match (classification)</option>
+            <option value="overlap">Word overlap with the expected answer (free text)</option>
+          </select>
+        </div>
+      </div>
+      <label class="f" for="instruction" style="margin-top:14px">Instruction given to every model</label>
+      <textarea id="instruction" rows="3"></textarea>
+      <label class="f" for="dataset" style="margin-top:14px">Golden dataset as JSON: a list of {"input", "expected"} pairs (up to 25)</label>
+      <textarea id="dataset" rows="9" spellcheck="false"></textarea>
+      <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="runBtn" type="button">Run evaluation</button>
+        <span class="hint">Each case costs one call per model plus one judge call per answer, billed to your key.</span>
+      </div>
+      <div class="status" id="status" role="status"></div>
+    </div>
+  </section>
+
+  <div id="results">
+    <div class="banner" id="demoBanner">Sample data. Model names, prices and response times in demo mode are illustrative and are not measurements of any real model. The scoring logic is the same one used in live runs.</div>
+
+    <section class="block">
+      <h2 class="h2">1. Set the decision</h2>
+      <p class="hint">The right model depends on what the business values. Move the sliders and the recommendation updates.</p>
+      <div class="controls">
+        <div class="card" id="taskCard">
+          <label class="f" for="taskSel">Task being evaluated</label>
+          <select id="taskSel"></select>
+          <p class="hint" id="taskDesc" style="margin-top:10px"></p>
+        </div>
+        <div class="card">
+          <div class="sliders">
+            <div class="sl"><div class="top"><span>Quality weight</span><b id="wqv"></b></div><input type="range" id="wq" min="0" max="100" value="50" aria-label="Quality weight"></div>
+            <div class="sl"><div class="top"><span>Cost weight</span><b id="wcv"></b></div><input type="range" id="wc" min="0" max="100" value="30" aria-label="Cost weight"></div>
+            <div class="sl"><div class="top"><span>Speed weight</span><b id="wsv"></b></div><input type="range" id="ws" min="0" max="100" value="20" aria-label="Speed weight"></div>
+            <div class="sl"><div class="top"><span>Minimum quality</span><b id="barv"></b></div><input type="range" id="bar" min="50" max="95" value="80" aria-label="Minimum quality bar"></div>
+          </div>
+          <p class="hint" style="margin-top:12px">Minimum quality is a gate, not a weight. A model below it is never recommended, however cheap it is.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2 class="h2">2. Recommendation</h2>
+      <div class="card reco" id="reco" style="margin-top:14px"></div>
+    </section>
+
+    <section class="block">
+      <h2 class="h2">3. Leaderboard</h2>
+      <p class="hint">Quality blends both stages. The black marker on each bar is the minimum quality you set.</p>
+      <div class="tablewrap"><table id="board"></table></div>
+    </section>
+
+    <section class="block">
+      <div class="two">
+        <div class="card">
+          <h2 class="h2">Cost against quality</h2>
+          <p class="hint">Top left is the best place to be: high quality, low cost. Hollow points are below the minimum quality.</p>
+          <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+        </div>
+        <div class="card queue">
+          <h2 class="h2">Human review queue</h2>
+          <p class="hint">Answers where the two stages disagree. These are the only ones a person needs to read.</p>
+          <div id="queue"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2 class="h2">4. Case drill-down</h2>
+      <p class="hint">Every answer, both scores, and the judge's reason.</p>
+      <div class="card" style="margin-top:14px">
+        <label class="f" for="caseSel">Test case</label>
+        <select id="caseSel"></select>
+        <div class="caseHead" id="caseHead"></div>
+        <div class="outs" id="outs"></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="card method">
+        <h2 class="h2">How the scores are calculated</h2>
+        <ul>
+          <li><b>Stage 1, golden dataset check.</b> For classification, the answer must match the expected label. For free text, it is the word overlap (F1) with the expected answer; 60 or more counts as a pass. It is cheap and repeatable, but it cannot tell a correct paraphrase from a wrong one, or spot one wrong number in a long answer.</li>
+          <li><b>Stage 2, LLM judge.</b> A judge model scores correctness, completeness and faithfulness from 1 to 5 and gives a reason. An answer passes when every dimension is 4 or 5.</li>
+          <li><b>Quality score.</b> A blend of the two stages: 50/50 for classification, 30/70 for free text, where overlap is the weaker signal.</li>
+          <li><b>Stage agreement.</b> The share of answers where both stages give the same pass or fail. Disagreements go to the review queue.</li>
+          <li><b>Cost per 1,000 requests.</b> Input and output tokens multiplied by the model's price. Judge calls are not included in a model's cost.</li>
+          <li><b>Decision score.</b> Your weights applied to quality, cost relative to the cheapest model, and speed relative to the fastest. Only models at or above the minimum quality can be recommended.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Designed and built by Abhijnan Chaturvedi. All sample data is synthetic.</span>
+    <span><a href="https://www.linkedin.com/in/abhijnan-chaturvedi/" target="_blank" rel="noopener">LinkedIn</a> · <a href="https://abhijnanchaturvedi21.netlify.app/" target="_blank" rel="noopener">Portfolio</a></span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* ---------- Sample data (synthetic) ---------- */
+const DEMO_MODELS = [
+  {id:"A", name:"Model A", sub:"Large flagship", pin:3.00, pout:15.00, base:1.8, perTok:0.012},
+  {id:"B", name:"Model B", sub:"Mid-tier", pin:0.80, pout:4.00, base:0.9, perTok:0.008},
+  {id:"C", name:"Model C", sub:"Small and fast", pin:0.15, pout:0.60, base:0.4, perTok:0.004},
+  {id:"D", name:"Model D", sub:"Open-weight, self-hosted", pin:0.60, pout:2.40, base:1.5, perTok:0.012}
+];
+const OK = "Matches the expected answer on every point.";
+const TASKS = [
+ {key:"classify", name:"Support ticket classification", metric:"exact",
+  desc:"Each model sorts a customer message into one of four queues. Stage 1 is an exact label match.",
+  instruction:"Classify the customer message into exactly one of these labels: Billing, Technical, Account, Shipping. Reply with the label only.",
+  cases:[
+   {input:"I was charged twice for my subscription this month.", expected:"Billing",
+    out:[["Billing",5,5,5,OK],["Billing",5,5,5,OK],["Billing",5,5,5,OK],["Billing",5,5,5,OK]]},
+   {input:"The app crashes every time I open the camera screen.", expected:"Technical",
+    out:[["Technical",5,5,5,OK],["Technical",5,5,5,OK],["Technical",5,5,5,OK],["Technical",5,5,5,OK]]},
+   {input:"I can't reset my password, the link never arrives.", expected:"Account",
+    out:[["Account",5,5,5,OK],["Account",5,5,5,OK],["Technical",1,1,3,"A password reset problem belongs to Account. The model read it as a product fault."],["Account",5,5,5,OK]]},
+   {input:"My order shows delivered but nothing has arrived.", expected:"Shipping",
+    out:[["Shipping",5,5,5,OK],["Shipping",5,5,5,OK],["Delivery",4,4,5,"The meaning is right, but Delivery is not one of the four allowed labels."],["Shipping",5,5,5,OK]]},
+   {input:"I upgraded my plan yesterday but the new features are still locked.", expected:"Account",
+    out:[["Account",5,5,5,OK],["Billing",3,3,4,"A defensible reading, but the payment went through. The issue is access on the account."],["Technical",2,2,3,"Nothing in the message points to a product fault."],["Account",5,5,5,OK]]}
+  ]},
+ {key:"summary", name:"Meeting note summarisation", metric:"overlap",
+  desc:"Each model writes a one-sentence summary. Stage 1 is word overlap with a reference summary, which is why the judge matters more here.",
+  instruction:"Summarise the note in one sentence. Keep every date, number and owner. Do not add anything that is not in the note.",
+  cases:[
+   {input:"The team agreed to move the launch from 3 March to 17 March because the payment integration failed security testing. Priya will send the revised plan to stakeholders by Friday.",
+    expected:"The launch moves from 3 March to 17 March after the payment integration failed security testing, and Priya sends the revised plan to stakeholders by Friday.",
+    out:[["The launch moves from 3 March to 17 March because the payment integration failed security testing, and Priya will send the revised plan to stakeholders by Friday.",5,5,5,OK],
+         ["The launch is delayed to 17 March after the payment integration failed security testing, and Priya will share the revised plan with stakeholders by Friday.",5,4,5,"Accurate, but drops the original date of 3 March."],
+         ["The launch is delayed because of security issues.",4,2,5,"True, but leaves out the new date, the cause in detail and the owner."],
+         ["The launch moves from 3 March to 17 March after the payment integration failed security testing, and Priya will send the revised plan to customers by Friday.",3,4,2,"Says the plan goes to customers. The note says stakeholders."]]},
+   {input:"Support volume rose 18% in October, mostly password reset requests after the login redesign. The team will add a self-service reset flow in the next sprint and review volume again in December.",
+    expected:"October support volume rose 18%, driven by password resets after the login redesign, so a self-service reset flow ships next sprint and volume is reviewed in December.",
+    out:[["Support volume rose 18% in October, driven by password resets after the login redesign, so a self-service reset flow ships next sprint and volume is reviewed again in December.",5,5,5,OK],
+         ["October support volume rose 18% because of password resets after the login redesign, so the team will add a self-service reset flow next sprint and review volume in December.",5,5,5,OK],
+         ["Support tickets went up 18% in October and the team will add self-service reset.",4,3,5,"Leaves out the cause and the December review."],
+         ["Support volume rose 18% in October, driven by password resets after the login redesign, and a self-service reset flow will be added next sprint.",5,4,5,"Misses the December review."]]},
+   {input:"The vendor quoted 40,000 dollars a year for the analytics tool, which is over the 30,000 budget. Finance asked for a second quote from another vendor before the decision on 12 June.",
+    expected:"The analytics tool quote of 40,000 dollars a year is over the 30,000 budget, so finance wants a second vendor quote before the decision on 12 June.",
+    out:[["The vendor's quote of 40,000 dollars a year for the analytics tool is over the 30,000 budget, so finance has asked for a second quote before the decision on 12 June.",5,5,5,OK],
+         ["The analytics tool quote of 40,000 dollars a year is over the 30,000 budget, and finance wants another vendor quote before the decision on 12 June.",5,5,5,OK],
+         ["The analytics tool costs 40,000 dollars, which finance approved pending a second quote.",2,3,1,"States that finance approved the cost. The note says no decision has been made."],
+         ["The analytics tool quote is over budget, so finance asked for a second quote before the decision on 12 June.",5,4,5,"Correct, but omits both amounts."]]},
+   {input:"Two of the five pilot customers reported slow dashboard loading. Engineering traced it to an unindexed query and will ship a fix on Tuesday; the pilot continues unchanged.",
+    expected:"Two of five pilot customers saw slow dashboard loading caused by an unindexed query, engineering ships a fix on Tuesday and the pilot continues.",
+    out:[["Two of the five pilot customers reported slow dashboard loading caused by an unindexed query, engineering will ship a fix on Tuesday and the pilot continues.",5,5,5,OK],
+         ["Two of five pilot customers reported slow dashboard loading, which engineering traced to an unindexed query and will fix on Tuesday.",5,4,5,"Does not say that the pilot continues."],
+         ["Some pilot customers had slow dashboards and a fix is coming Tuesday.",4,3,5,"Vague on how many customers and silent on the cause."],
+         ["Two of five pilot customers saw slow dashboard loading caused by an unindexed query, a fix ships Tuesday and the pilot continues unchanged.",5,5,5,OK]]}
+  ]},
+ {key:"qa", name:"Policy question answering", metric:"overlap",
+  desc:"Each model answers a question using only the policy text provided. This is where invented or misread facts show up.",
+  instruction:"Answer the question using only the policy text provided. If the policy does not cover something, say so. Keep the answer to one or two sentences.",
+  cases:[
+   {input:"Policy: Refunds are available within 30 days of purchase. Items must be unused. Refunds go back to the original payment method within 5 to 7 business days.\nQuestion: How long do I have to return an item, and how long does the refund take?",
+    expected:"You have 30 days from purchase to return an unused item, and the refund goes back to your original payment method within 5 to 7 business days.",
+    out:[["You have 30 days from purchase to return an unused item. The refund goes back to your original payment method within 5 to 7 business days.",5,5,5,OK],
+         ["You can return an unused item within 30 days of purchase, and the refund goes back to your original payment method in 5 to 7 business days.",5,5,5,OK],
+         ["You have 30 days to return it.",5,2,5,"Answers only the first half of the question."],
+         ["You have 30 days from purchase to return an unused item, and the refund takes 5 to 7 business days to reach your original payment method.",5,5,5,OK]]},
+   {input:"Policy: Phone and chat support is available Monday to Friday, 9am to 6pm. Premium customers also get weekend support, by email only.\nQuestion: Can I call support on Saturday?",
+    expected:"No. Phone support runs Monday to Friday, 9am to 6pm. At weekends only Premium customers get support, and only by email.",
+    out:[["No. Phone support runs Monday to Friday, 9am to 6pm. At weekends, only Premium customers get support, and it is by email only.",5,5,5,OK],
+         ["No. Phone support runs Monday to Friday, 9am to 6pm, and at weekends Premium customers get support by email only.",5,5,5,OK],
+         ["Yes, Premium customers get weekend support.",1,2,2,"Wrong. Weekend support is by email only, so a Saturday call is not possible."],
+         ["Phone support runs Monday to Friday, 9am to 6pm. Premium customers get weekend support by email only.",4,4,5,"The facts are right, but it never gives the direct answer, which is no."]]},
+   {input:"Policy: The free plan includes 3 projects and 1 GB of storage. The Team plan includes unlimited projects and 100 GB of storage.\nQuestion: How many projects can I create on the free plan, and is there an Enterprise plan?",
+    expected:"The free plan includes 3 projects. The policy does not mention an Enterprise plan.",
+    out:[["The free plan includes 3 projects. The policy does not mention an Enterprise plan.",5,5,5,OK],
+         ["The free plan includes 3 projects. Yes, an Enterprise plan is available with custom limits, contact sales for pricing.",3,4,1,"Invents an Enterprise plan. The policy never mentions one."],
+         ["3 projects.",5,2,5,"Ignores the Enterprise question."],
+         ["The free plan includes 3 projects. The policy provided does not mention an Enterprise plan.",5,5,5,OK]]},
+   {input:"Policy: Passwords must be at least 12 characters and include one number. Passwords expire every 90 days. The last 5 passwords cannot be reused.\nQuestion: What are the password rules?",
+    expected:"Passwords must be at least 12 characters with one number, expire every 90 days, and cannot repeat any of your last 5 passwords.",
+    out:[["Passwords must be at least 12 characters and include one number. They expire every 90 days, and you cannot reuse any of your last 5 passwords.",5,5,5,OK],
+         ["Passwords must be at least 12 characters with one number, expire every 90 days, and cannot repeat any of your last 5 passwords.",5,5,5,OK],
+         ["Passwords must be at least 12 characters and include a number.",5,3,5,"Leaves out the expiry and reuse rules."],
+         ["Passwords must be at least 8 characters with one number, expire every 90 days, and cannot repeat any of your last 5 passwords.",2,5,2,"States 8 characters. The policy says 12."]]}
+  ]}
+];
+
+/* ---------- Scoring ---------- */
+const S1_PASS = 60;
+function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9%\s]/g," ").replace(/\s+/g," ").trim();}
+function toks(s){const n=norm(s);return n?n.split(" "):[];}
+function exactScore(out,exp){
+  const o=toks(out), e=toks(exp);
+  if(!o.length||!e.length) return 0;
+  if(o.length>e.length+3) return 0;
+  return (" "+o.join(" ")+" ").includes(" "+e.join(" ")+" ")?100:0;
+}
+function overlapScore(out,exp){
+  const o=toks(out), e=toks(exp);
+  if(!o.length||!e.length) return 0;
+  const c={}; e.forEach(t=>c[t]=(c[t]||0)+1);
+  let hit=0; o.forEach(t=>{if(c[t]>0){hit++;c[t]--;}});
+  if(!hit) return 0;
+  const p=hit/o.length, r=hit/e.length;
+  return 100*2*p*r/(p+r);
+}
+function stage1(metric,out,exp){return metric==="exact"?exactScore(out,exp):overlapScore(out,exp);}
+function estTok(s){return Math.max(1,Math.ceil(String(s||"").length/4));}
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+
+/* A run: {task:{name,instruction,metric,cases:[{input,expected}]}, models:[{name,sub,pin,pout,outputs:[{text,inTok,outTok,latency,judge,error}]}], illustrative} */
+function demoRun(task){
+  return {illustrative:true, task:{name:task.name,instruction:task.instruction,metric:task.metric,
+      cases:task.cases.map(c=>({input:c.input,expected:c.expected}))},
+    models:DEMO_MODELS.map((m,mi)=>({name:m.name,sub:m.sub,pin:m.pin,pout:m.pout,priced:true,
+      outputs:task.cases.map(c=>{const o=c.out[mi]; const outTok=estTok(o[0]);
+        return {text:o[0], inTok:estTok(task.instruction)+estTok(c.input), outTok, latency:m.base+outTok*m.perTok,
+          judge:{c:o[1],p:o[2],f:o[3],reason:o[4]}};})}))};
+}
+function analyse(run){
+  const metric=run.task.metric, w1=metric==="exact"?0.5:0.3;
+  const rows=run.models.map(m=>{
+    const per=m.outputs.map((o,i)=>{
+      if(o.error) return {s1:0,s2:null,s1pass:false,s2pass:null,disagree:false,error:o.error};
+      const s1=stage1(metric,o.text,run.task.cases[i].expected);
+      const j=o.judge; const s2=j?(j.c+j.p+j.f)/15*100:null;
+      const s1pass=s1>=(metric==="exact"?100:S1_PASS);
+      const s2pass=j?Math.min(j.c,j.p,j.f)>=4:null;
+      return {s1,s2,s1pass,s2pass,disagree:s2pass!==null&&s1pass!==s2pass};
+    });
+    const judged=per.filter(p=>p.s2!==null);
+    const s1avg=mean(per.map(p=>p.s1));
+    const s2avg=judged.length?mean(judged.map(p=>p.s2)):null;
+    const quality=s2avg===null?s1avg:w1*s1avg+(1-w1)*s2avg;
+    const okOut=m.outputs.filter(o=>!o.error);
+    const cost=m.priced&&okOut.length?mean(okOut.map(o=>(o.inTok*m.pin+o.outTok*m.pout)/1e6))*1000:null;
+    const latency=okOut.length?mean(okOut.map(o=>o.latency)):null;
+    const agree=judged.length?100*judged.filter(p=>!p.disagree).length/judged.length:null;
+    return {m,per,s1avg,s2avg,quality,cost,latency,agree,errors:per.filter(p=>p.error).length};
+  });
+  return rows;
+}
+function decide(rows,w,bar){
+  const tot=(w.q+w.c+w.s)||1, wq=w.q/tot, wc=w.c/tot, ws=w.s/tot;
+  const costs=rows.map(r=>r.cost).filter(c=>c!==null&&c>0);
+  const lats=rows.map(r=>r.latency).filter(l=>l!==null&&l>0);
+  const minC=costs.length?Math.min(...costs):null, minL=lats.length?Math.min(...lats):null;
+  rows.forEach(r=>{
+    const cs=(minC!==null&&r.cost)?minC/r.cost:1;
+    const ss=(minL!==null&&r.latency)?minL/r.latency:1;
+    r.decision=100*(wq*r.quality/100+wc*cs+ws*ss);
+    r.clears=r.quality>=bar;
+  });
+  const ok=rows.filter(r=>r.clears).sort((a,b)=>b.decision-a.decision);
+  return ok[0]||null;
+}
+
+/* ---------- Rendering ---------- */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f0=n=>Math.round(n).toString();
+const money=n=>n===null?"n/a":"$"+(n>=10?n.toFixed(1):n>=1?n.toFixed(2):n.toFixed(3));
+const secs=n=>n===null?"n/a":n.toFixed(1)+"s";
+let RUN=null, ROWS=null, mode="demo";
+
+function weights(){return {q:+$("wq").value,c:+$("wc").value,s:+$("ws").value};}
+function renderAll(){
+  if(!RUN) return;
+  const w=weights(), bar=+$("bar").value, tot=(w.q+w.c+w.s)||1;
+  $("wqv").textContent=f0(100*w.q/tot)+"%"; $("wcv").textContent=f0(100*w.c/tot)+"%"; $("wsv").textContent=f0(100*w.s/tot)+"%"; $("barv").textContent=bar;
+  ROWS=analyse(RUN);
+  const win=decide(ROWS,w,bar);
+  renderReco(win,bar); renderBoard(win,bar); renderChart(win,bar); renderQueue(); renderCase();
+}
+function renderReco(win,bar){
+  const el=$("reco");
+  if(!win){
+    const best=[...ROWS].sort((a,b)=>b.quality-a.quality)[0];
+    el.innerHTML='<div><div class="tag">No recommendation</div><h3>No model clears a quality of '+bar+'</h3><p>The closest is '+esc(best.m.name)+' at '+f0(best.quality)+'. Either lower the minimum quality, improve the prompt, or test a stronger model. Shipping below the bar is a business risk, not a saving.</p></div><div class="tiles"><div class="tile"><div class="k">Best quality</div><div class="v">'+f0(best.quality)+'</div></div><div class="tile"><div class="k">Gap to bar</div><div class="v">'+f0(bar-best.quality)+'</div></div><div class="tile"><div class="k">Models tested</div><div class="v">'+ROWS.length+'</div></div></div>';
+    return;
+  }
+  const top=[...ROWS].sort((a,b)=>b.quality-a.quality)[0];
+  let why;
+  if(top===win){
+    why="It has the highest quality of the models tested and the best overall score on your weights.";
+  }else{
+    const gap=top.quality-win.quality;
+    why="It scores "+f0(win.quality)+" on quality, "+(gap<0.5?"level with":f0(gap)+" point"+(Math.round(gap)===1?"":"s")+" behind")+" "+esc(top.m.name)+", the highest scorer";
+    if(win.cost!==null&&top.cost!==null&&top.cost>0){
+      const pct=100*(1-win.cost/top.cost);
+      why+=pct>=1?", at "+f0(pct)+"% lower cost":pct<=-1?", at "+f0(-pct)+"% higher cost":", at about the same cost";
+    }
+    why+=".";
+  }
+  const out=ROWS.filter(r=>!r.clears).map(r=>esc(r.m.name));
+  if(out.length) why+=" Ruled out for quality below "+bar+": "+out.join(", ")+".";
+  el.innerHTML='<div><div class="tag">Recommended on your weights</div><h3>'+esc(win.m.name)+(win.m.sub?' <span style="font-weight:400;color:var(--ink3);font-size:17px">'+esc(win.m.sub)+'</span>':'')+'</h3><p>'+why+'</p></div><div class="tiles"><div class="tile"><div class="k">Quality</div><div class="v">'+f0(win.quality)+'</div></div><div class="tile"><div class="k">Cost / 1K requests</div><div class="v">'+money(win.cost)+'</div></div><div class="tile"><div class="k">Avg response</div><div class="v">'+secs(win.latency)+'</div></div></div>';
+}
+function renderBoard(win,bar){
+  const sorted=[...ROWS].sort((a,b)=>(b.clears-a.clears)||(b.decision-a.decision));
+  let h='<thead><tr><th>Model</th><th>Quality</th><th class="num">Stage 1</th><th class="num">Stage 2</th><th class="num">Cost / 1K req</th><th class="num">Avg response</th><th class="num">Stage agreement</th><th class="num">Decision score</th><th>Status</th></tr></thead><tbody>';
+  sorted.forEach(r=>{
+    const st=r===win?'<span class="pill brand">&#9733; Recommended</span>':r.clears?'<span class="pill good">&#10003; Clears bar</span>':'<span class="pill bad">&#10005; Below bar</span>';
+    h+='<tr'+(r===win?' class="win"':'')+'><td><div class="mname">'+esc(r.m.name)+'</div>'+(r.m.sub?'<div class="msub">'+esc(r.m.sub)+'</div>':'')+(r.errors?'<div class="msub err">'+r.errors+' failed call'+(r.errors>1?'s':'')+'</div>':'')+'</td>'
+     +'<td><div class="qbar"><div class="track"><div class="fill" style="width:'+Math.max(0,Math.min(100,r.quality))+'%"></div><div class="gate" style="left:'+bar+'%"></div></div><b>'+f0(r.quality)+'</b></div></td>'
+     +'<td class="num">'+f0(r.s1avg)+'</td><td class="num">'+(r.s2avg===null?"n/a":f0(r.s2avg))+'</td><td class="num">'+money(r.cost)+'</td><td class="num">'+secs(r.latency)+'</td><td class="num">'+(r.agree===null?"n/a":f0(r.agree)+"%")+'</td><td class="num"><b>'+f0(r.decision)+'</b></td><td>'+st+'</td></tr>';
+  });
+  $("board").innerHTML=h+'</tbody>';
+}
+function renderChart(win,bar){
+  const W=640,H=380,L=52,R=24,T=18,B=46, pw=W-L-R, ph=H-T-B;
+  const pts=ROWS.filter(r=>r.cost!==null);
+  const host=$("chart");
+  host.querySelectorAll("svg,p").forEach(n=>n.remove());
+  if(pts.length<2){const p=document.createElement("p");p.className="hint";p.style.marginTop="14px";p.textContent="Add prices for at least two models to see cost against quality.";host.appendChild(p);return;}
+  const maxC=Math.max(...pts.map(r=>r.cost))*1.18;
+  const minQ=Math.min(bar,...pts.map(r=>r.quality));
+  const y0=Math.max(0,Math.floor((minQ-8)/10)*10), y1=100;
+  const X=c=>L+pw*c/maxC, Y=q=>T+ph*(1-(q-y0)/(y1-y0));
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Scatter chart of cost per 1,000 requests against quality score for each model">';
+  for(let q=y0;q<=y1;q+=10){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(q)+'" y2="'+Y(q)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-8)+'" y="'+(Y(q)+4)+'" text-anchor="end" font-size="12" fill="var(--ink3)">'+q+'</text>';}
+  const step=niceStep(maxC/5);
+  for(let c=0;c<=maxC;c+=step){s+='<text x="'+X(c)+'" y="'+(H-B+18)+'" text-anchor="middle" font-size="12" fill="var(--ink3)">$'+(step<1?c.toFixed(2):c.toFixed(step<10?1:0))+'</text>';}
+  s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(H-B)+'" y2="'+(H-B)+'" stroke="var(--ink3)" stroke-width="1"/>';
+  s+='<text x="'+(L+pw/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="12.5" fill="var(--ink2)">Cost per 1,000 requests</text>';
+  s+='<text transform="translate(14 '+(T+ph/2)+') rotate(-90)" text-anchor="middle" font-size="12.5" fill="var(--ink2)">Quality score</text>';
+  s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(bar)+'" y2="'+Y(bar)+'" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="'+(L+pw/2)+'" y="'+(Y(bar)+15)+'" text-anchor="middle" font-size="12" fill="var(--ink)">Minimum quality '+bar+'</text>';
+  const placed=[];
+  pts.forEach((r,i)=>{
+    const x=X(r.cost), y=Y(r.quality), isWin=r===win;
+    if(isWin) s+='<circle cx="'+x+'" cy="'+y+'" r="13" fill="none" stroke="var(--brand)" stroke-width="2"/>';
+    s+='<circle cx="'+x+'" cy="'+y+'" r="7" fill="'+(r.clears?'var(--brand)':'var(--surface)')+'" stroke="var(--brand)" stroke-width="2.5"/>';
+    let ly=y+4, right=x<L+pw*0.72;
+    placed.forEach(p=>{if(Math.abs(p.y-ly)<15&&Math.abs(p.x-x)<110) ly=p.y+15;});
+    placed.push({x,y:ly});
+    s+='<text x="'+(right?x+18:x-18)+'" y="'+ly+'" text-anchor="'+(right?'start':'end')+'" font-size="13" font-weight="600" fill="var(--ink)">'+esc(r.m.name)+(isWin?' (recommended)':'')+'</text>';
+    s+='<circle class="hit" data-i="'+ROWS.indexOf(r)+'" cx="'+x+'" cy="'+y+'" r="20" fill="transparent" tabindex="0"/>';
+  });
+  s+='</svg>';
+  host.insertAdjacentHTML("beforeend",s);
+  const tip=$("tip");
+  host.querySelectorAll(".hit").forEach(c=>{
+    const show=()=>{const r=ROWS[+c.dataset.i]; const b=host.getBoundingClientRect(), cb=c.getBoundingClientRect();
+      tip.innerHTML='<b>'+esc(r.m.name)+'</b><br>Quality '+f0(r.quality)+' · '+money(r.cost)+' per 1K · '+secs(r.latency);
+      tip.style.left=(cb.left+cb.width/2-b.left)+"px"; tip.style.top=(cb.top-b.top+8)+"px"; tip.style.display="block";};
+    const hide=()=>{tip.style.display="none";};
+    c.addEventListener("mouseenter",show); c.addEventListener("mouseleave",hide); c.addEventListener("focus",show); c.addEventListener("blur",hide);
+  });
+}
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x))); const m=x/p; return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
+function renderQueue(){
+  const items=[];
+  ROWS.forEach(r=>r.per.forEach((p,i)=>{if(p.disagree) items.push({r,p,i});}));
+  const total=ROWS.reduce((n,r)=>n+r.per.filter(p=>p.s2!==null).length,0);
+  let h='<div class="tiles" style="grid-template-columns:1fr 1fr;margin-top:14px"><div class="tile"><div class="k">Answers to review</div><div class="v">'+items.length+' of '+total+'</div></div><div class="tile"><div class="k">Auto-decided</div><div class="v">'+(total?f0(100*(total-items.length)/total):0)+'%</div></div></div>';
+  if(!total){h+='<p class="hint" style="margin-top:12px">No judge scores in this run, so the stages cannot be compared.</p>';}
+  else if(!items.length){h+='<p class="hint" style="margin-top:12px">Both stages agree on every answer.</p>';}
+  else{
+    h+='<ul>';
+    items.slice(0,8).forEach(it=>{
+      const what=it.p.s1pass?"passed the dataset check but the judge failed it":"failed the dataset check but the judge passed it";
+      h+='<li><button class="link" data-case="'+it.i+'">Case '+(it.i+1)+'</button>, '+esc(it.r.m.name)+': '+what+'.</li>';
+    });
+    h+='</ul>';
+    if(items.length>8) h+='<p class="hint">And '+(items.length-8)+' more in the drill-down.</p>';
+  }
+  $("queue").innerHTML=h;
+  $("queue").querySelectorAll("button[data-case]").forEach(b=>b.addEventListener("click",()=>{$("caseSel").value=b.dataset.case;renderCase();$("caseSel").scrollIntoView({behavior:"smooth",block:"center"});}));
+}
+function fillCases(){
+  $("caseSel").innerHTML=RUN.task.cases.map((c,i)=>'<option value="'+i+'">Case '+(i+1)+': '+esc(c.input.replace(/\s+/g," ").slice(0,80))+(c.input.length>80?"...":"")+'</option>').join("");
+}
+function renderCase(){
+  const i=+$("caseSel").value||0, c=RUN.task.cases[i]; if(!c) return;
+  $("caseHead").innerHTML='<div class="box"><div class="k">Input</div>'+esc(c.input)+'</div><div class="box"><div class="k">Expected answer</div>'+esc(c.expected)+'</div>';
+  $("outs").innerHTML=ROWS.map(r=>{
+    const o=r.m.outputs[i], p=r.per[i];
+    if(o.error) return '<div class="card out"><div class="hd"><div class="mname">'+esc(r.m.name)+'</div><span class="pill bad">&#10005; Call failed</span></div><div class="txt err">'+esc(o.error)+'</div></div>';
+    const flag=p.disagree?'<span class="pill warn">&#9873; Needs review</span>':(p.s2pass===null?(p.s1pass?'<span class="pill good">&#10003; Stage 1 pass</span>':'<span class="pill bad">&#10005; Stage 1 fail</span>'):p.s2pass?'<span class="pill good">&#10003; Pass</span>':'<span class="pill bad">&#10005; Fail</span>');
+    const j=o.judge;
+    return '<div class="card out"><div class="hd"><div><div class="mname">'+esc(r.m.name)+'</div>'+(r.m.sub?'<div class="msub">'+esc(r.m.sub)+'</div>':'')+'</div>'+flag+'</div>'
+      +'<div class="txt">'+esc(o.text)+'</div>'
+      +'<div class="scores"><span class="chip">Stage 1 <b>'+f0(p.s1)+'</b></span>'
+      +(j?'<span class="chip">Correctness <b>'+j.c+'/5</b></span><span class="chip">Completeness <b>'+j.p+'/5</b></span><span class="chip">Faithfulness <b>'+j.f+'/5</b></span>':'<span class="chip">Judge score unavailable</span>')
+      +'<span class="chip">'+secs(o.latency)+'</span></div>'
+      +(j&&j.reason?'<div class="why"><b>Judge:</b> '+esc(j.reason)+'</div>':'')+'</div>';
+  }).join("");
+}
+
+/* ---------- Demo wiring ---------- */
+function loadDemo(){
+  const t=TASKS.find(x=>x.key===$("taskSel").value)||TASKS[0];
+  $("taskDesc").textContent=t.desc;
+  RUN=demoRun(t); fillCases(); renderAll();
+}
+$("taskSel").innerHTML=TASKS.map(t=>'<option value="'+t.key+'">'+esc(t.name)+'</option>').join("");
+$("taskSel").addEventListener("change",loadDemo);
+["wq","wc","ws","bar"].forEach(id=>$(id).addEventListener("input",renderAll));
+$("caseSel").addEventListener("change",renderCase);
+
+/* ---------- Live mode ---------- */
+let PRICES=null, liveRun=null;
+function setMode(m){
+  mode=m;
+  $("modeDemo").setAttribute("aria-pressed",m==="demo"); $("modeLive").setAttribute("aria-pressed",m==="live");
+  $("livePanel").style.display=m==="live"?"block":"none";
+  $("demoBanner").style.display=m==="demo"?"block":"none";
+  $("taskCard").style.display=m==="demo"?"block":"none";
+  if(m==="demo"){ $("results").style.display="block"; loadDemo(); }
+  else{ if(liveRun){RUN=liveRun; fillCases(); renderAll(); $("results").style.display="block";} else $("results").style.display="none"; }
+}
+$("modeDemo").addEventListener("click",()=>setMode("demo"));
+$("modeLive").addEventListener("click",()=>setMode("live"));
+$("sample").innerHTML=TASKS.map(t=>'<option value="'+t.key+'">'+esc(t.name)+'</option>').join("");
+function loadSample(){
+  const t=TASKS.find(x=>x.key===$("sample").value)||TASKS[0];
+  $("instruction").value=t.instruction; $("metric").value=t.metric;
+  $("dataset").value=JSON.stringify(t.cases.map(c=>({input:c.input,expected:c.expected})),null,2);
+}
+$("sample").addEventListener("change",loadSample); loadSample();
+function baseUrl(){return $("baseUrl").value.trim().replace(/\/+$/,"");}
+async function loadPrices(){
+  if(PRICES||!/openrouter\.ai/i.test(baseUrl())) return;
+  try{
+    const r=await fetch(baseUrl()+"/models"); const d=await r.json(); PRICES={};
+    (d.data||[]).forEach(m=>{if(m&&m.id&&m.pricing) PRICES[m.id]={pin:parseFloat(m.pricing.prompt)*1e6,pout:parseFloat(m.pricing.completion)*1e6,name:m.name||m.id};});
+    $("modelList").innerHTML=Object.keys(PRICES).sort().map(id=>'<option value="'+esc(id)+'">').join("");
+  }catch(e){PRICES=null;}
+}
+$("modelSearch").addEventListener("focus",loadPrices); $("judgeId").addEventListener("focus",loadPrices);
+$("addModel").addEventListener("click",()=>{const v=$("modelSearch").value.trim(); if(!v) return; const t=$("modelIds"); t.value=(t.value.trim()?t.value.trim()+"\n":"")+v; $("modelSearch").value="";});
+function setStatus(msg,isErr){const s=$("status"); s.textContent=msg; s.className="status"+(isErr?" err":"");}
+async function chat(model,messages,key){
+  const call=async body=>{
+    const t0=performance.now();
+    const r=await fetch(baseUrl()+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)});
+    const txt=await r.text(); let d=null; try{d=JSON.parse(txt);}catch(e){}
+    return {r,d,txt,ms:performance.now()-t0};
+  };
+  let res=await call({model,messages,temperature:0});
+  if(res.r.status===400) res=await call({model,messages});
+  if(!res.r.ok||!res.d||!res.d.choices){
+    const msg=res.d&&res.d.error?(res.d.error.message||JSON.stringify(res.d.error)):res.txt.slice(0,200);
+    throw new Error("HTTP "+res.r.status+": "+msg);
+  }
+  const c=res.d.choices[0].message.content;
+  const text=typeof c==="string"?c:Array.isArray(c)?c.map(x=>x.text||"").join(""):"";
+  return {text:text.trim(),usage:res.d.usage||{},latency:res.ms/1000};
+}
+function judgePrompt(task,c,answer){
+  return "Task instruction given to the model:\n"+task.instruction+"\n\nInput:\n"+c.input+"\n\nReference answer:\n"+c.expected+"\n\nCandidate answer:\n"+answer+"\n\nScore the candidate from 1 (poor) to 5 (excellent) on:\n- correctness: its facts or label agree with the reference and the input\n- completeness: it covers everything the reference covers\n- faithfulness: it adds nothing the input does not support\n\nReply with JSON only, in this exact shape: {\"correctness\": n, \"completeness\": n, \"faithfulness\": n, \"reason\": \"one short sentence\"}";
+}
+function parseJudge(t){
+  const m=String(t).match(/\{[\s\S]*\}/); if(!m) return null;
+  try{const j=JSON.parse(m[0]); const k=v=>Math.max(1,Math.min(5,Math.round(Number(v))));
+    if([j.correctness,j.completeness,j.faithfulness].some(v=>!isFinite(Number(v)))) return null;
+    return {c:k(j.correctness),p:k(j.completeness),f:k(j.faithfulness),reason:String(j.reason||"")};}catch(e){return null;}
+}
+$("runBtn").addEventListener("click",async()=>{
+  const key=$("apiKey").value.trim(), judge=$("judgeId").value.trim();
+  const lines=$("modelIds").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  let cases;
+  try{cases=JSON.parse($("dataset").value);}catch(e){return setStatus("The dataset is not valid JSON: "+e.message,true);}
+  if(!Array.isArray(cases)||!cases.length||cases.some(c=>!c||typeof c.input!=="string"||typeof c.expected!=="string")) return setStatus('The dataset must be a list of {"input": "...", "expected": "..."} items.',true);
+  if(cases.length>25) return setStatus("Please keep the dataset to 25 cases or fewer.",true);
+  if(!key) return setStatus("Add your API key.",true);
+  if(lines.length<2||lines.length>5) return setStatus("Enter between 2 and 5 models, one per line.",true);
+  if(!judge) return setStatus("Choose a judge model.",true);
+  $("runBtn").disabled=true; setStatus("Looking up prices...");
+  await loadPrices();
+  const task={name:"Live run",instruction:$("instruction").value.trim(),metric:$("metric").value,cases:cases.map(c=>({input:c.input,expected:c.expected}))};
+  const models=lines.map(l=>{const p=l.split("|").map(s=>s.trim()); const id=p[0]; let pin=parseFloat(p[1]), pout=parseFloat(p[2]); let priced=isFinite(pin)&&isFinite(pout);
+    if(!priced&&PRICES&&PRICES[id]&&isFinite(PRICES[id].pin)&&isFinite(PRICES[id].pout)){pin=PRICES[id].pin;pout=PRICES[id].pout;priced=true;}
+    return {id,name:id,sub:"",pin:priced?pin:0,pout:priced?pout:0,priced,outputs:[]};});
+  const total=models.length*cases.length; let done=0;
+  const tick=()=>setStatus("Running: "+done+" of "+total+" answers scored...");
+  tick();
+  await Promise.all(models.map(async m=>{
+    for(const c of task.cases){
+      let o;
+      try{
+        const a=await chat(m.id,[{role:"system",content:task.instruction},{role:"user",content:c.input}],key);
+        o={text:a.text,inTok:a.usage.prompt_tokens||estTok(task.instruction)+estTok(c.input),outTok:a.usage.completion_tokens||estTok(a.text),latency:a.latency,judge:null};
+        try{
+          const j=await chat(judge,[{role:"system",content:"You are a strict, fair evaluator of AI model answers. You reply with JSON only."},{role:"user",content:judgePrompt(task,c,a.text)}],key);
+          o.judge=parseJudge(j.text);
+        }catch(e){o.judge=null;}
+      }catch(e){o={error:e.message||"Request failed"};}
+      m.outputs.push(o); done++; tick();
+    }
+  }));
+  $("runBtn").disabled=false;
+  const failed=models.reduce((n,m)=>n+m.outputs.filter(o=>o.error).length,0);
+  if(failed===total){setStatus("Every call failed. First error: "+models[0].outputs[0].error,true);return;}
+  liveRun={illustrative:false,task,models}; RUN=liveRun; fillCases(); $("results").style.display="block"; renderAll();
+  setStatus("Done. "+(total-failed)+" of "+total+" answers scored."+(failed?" "+failed+" calls failed, see the drill-down.":""),false);
+  $("demoBanner").style.display="none";
+  document.querySelector("#results .block").scrollIntoView({behavior:"smooth"});
+});
+
+setMode("demo");
+</script>
+</body>
+</html>
